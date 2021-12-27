@@ -1,0 +1,90 @@
+# https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
+
+# curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add
+# - name: Add K8S APT key
+#   apt_key:
+#     url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+
+
+# - name: Copy apt-key.gpg to /tmp
+#   copy:
+#     src: apt-key.gpg
+#     dest: /usr/share/keyrings/kubernetes-archive-keyring.gpg
+
+- name: Get apt-key.gpg from Google server
+  get_url:
+    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+    dest: /usr/share/keyrings/kubernetes-archive-keyring.gpg
+
+- name: Add K8S APT key
+  apt_key:
+    file: /usr/share/keyrings/kubernetes-archive-keyring.gpg
+
+- name: Add K8S repository
+  apt_repository:
+    repo: "deb [signed-by=/usr/share/keyrings/kubernetes-archive-keyring.gpg] https://apt.kubernetes.io/ kubernetes-xenial main"
+    state: present
+    validate_certs: no
+
+# sudo apt-get install -y kubelet kubeadm kubectl
+- name: Install kubernetes packages
+  apt:
+    name: "{{ item }}={{ kubernetes_version }}-*"
+    state: present
+    update_cache: yes
+  loop: "{{ kubernetes_packages }}"
+
+# sudo apt-mark hold kubelet kubeadm kubectl
+# sudo apt-mark unhold kubelet kubeadm kubectl
+- name: Prevent updating of a kubernetes packages
+  shell: "apt-mark hold {{ item }}"
+  loop: "{{ kubernetes_packages }}"
+
+- name: Create kubelet dir
+  file:
+    path: /var/lib/kubelet
+    state: directory
+    mode: '0755'
+
+- name: Copy kubelet_config
+  template:
+    src: kubelet_config.yaml
+    dest: /var/lib/kubelet/config.yaml
+    mode: '0755'
+  notify: restart_kubelet
+
+- meta: flush_handlers
+
+# kubectl version --client && kubeadm version
+- name: Get version of packages
+  shell: "kubectl version --client && kubeadm version"
+  register: kube_versions
+- debug: var=kube_versions.stdout_lines
+
+# https://kubernetes.io/docs/setup/production-environment/container-runtimes/#cgroup-drivers
+# NOTE: Changing the settings such that your container runtime and kubelet use systemd as the cgroup driver stabilized the system.
+# Please note the native.cgroupdriver=systemd option in the Docker setup below.
+
+# - name: Set up the Docker daemon
+#   copy:
+#     src: docker_daemon.json
+#     dest: /etc/docker/daemon.json
+#     backup: yes
+#   notify: restart_docker
+
+# - name: Add the user to the group 'docker'
+#   user:
+#     name: "{{ ansible_user }}"
+#     groups: docker
+#     append: yes
+
+# Restart Docker
+# systemctl daemon-reload
+# systemctl restart docker
+#
+# systemctl restart docker
+
+# - name: Create a docker systemd directory
+#   file:
+#     path: /etc/systemd/system/docker.service.d
+#     state: directory

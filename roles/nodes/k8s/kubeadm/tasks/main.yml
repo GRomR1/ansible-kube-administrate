@@ -1,0 +1,9 @@
+
+- name: Installing kubeadm
+  include_tasks:
+    file: kubeadm.yml
+    apply:
+      tags:
+        - kubeadm
+  tags:
+    - kubeadm

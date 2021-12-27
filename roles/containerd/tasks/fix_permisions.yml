@@ -1,0 +1,21 @@
+- name: Install ACL package
+  apt:
+    update_cache: true
+    name:
+      - acl
+    state: present
+
+- name: Get ACL of containerd.sock
+  shell:
+    cmd: getfacl run/containerd/containerd.sock | grep group:admins:rw- | awk {"print $1"}
+    chdir: /
+  register: getfacl_containerd
+
+- block:
+    - name: Set 'group:admins:rw' ACL of containerd.sock
+      shell:
+        cmd: setfacl --modify group:admins:rw /run/containerd/containerd.sock
+        chdir: /
+      register: setacl_containerd
+    # - debug: var=setacl_containerd.stdout_lines verbosity=1
+  when: getfacl_containerd.stdout_lines | length == 0

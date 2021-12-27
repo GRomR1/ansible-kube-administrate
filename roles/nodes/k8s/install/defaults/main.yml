@@ -1,0 +1,69 @@
+
+# # containerd
+# containerd_repo: https://download.docker.com/linux/
+# docker_apt_ignore_key_error: true
+# containerd_repo_valid_ssl: true
+# containerd_cni_bin_dir: "{{ (ansible_distribution != 'Fedora') | ternary('/opt/cni/bin', '/usr/libexec/cni') }}"
+# containerd_cni_conf_dir: /etc/cni/net.d
+# containerd_data_root: /var/lib/containerd
+# containerd_dockerio_mirror: https://registry-1.docker.io
+
+# crictl
+# https://github.wcom/kubernetes-sigs/cri-tools/releases
+# crictl_version: v1.19.0
+
+kubernetes_packages:
+  - kubeadm
+  - kubelet
+  - kubectl
+
+# https://kubernetes.io/docs/setup/release/notes/
+# https://github.com/kubernetes/kubernetes/releases
+kubernetes_version: 1.21.1
+
+# Used to set a Pod network add-on CIDR
+kubernetes_pod_subnet: 10.220.0.0/16
+kubernetes_host_subnet: 172.16.20.0/24 # redefine this var in group var
+kubernetes_service_subnet: 10.120.0.0/16
+# load balancer IP and PORT
+kubernetes_control_plane_endpoint: k8s.local # redefine this var in group var
+kubernetes_control_plane_port: 8443
+kubernetes_cluster_name: cluster.local
+
+kubernetes_master_nodes:
+  - node: k8s-m1
+    # haproxy_ip: 172.16.1.121
+    keepalived_state: MASTER
+    keepalived_priority: 101
+  - node: k8s-m2
+    # haproxy_ip: 172.16.1.122
+    keepalived_state: BACKUP
+    keepalived_priority: 100
+  - node: k8s-m3
+    # haproxy_ip: 172.16.1.123
+    keepalived_state: BACKUP
+    keepalived_priority: 100
+
+### calico ###
+calico_crd_url: https://docs.projectcalico.org/manifests/tigera-operator.yaml
+
+# https://docs.projectcalico.org/releases
+calico_calicoctl_version: v3.19.0
+calico_calicoctl_download_url: "https://github.com/projectcalico/calicoctl/releases/download/{{ calico_calicoctl_version }}/calicoctl"
+# kubeadm config print init-defaults
+
+# ---
+# https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/control-plane-flags/#apiserver-flags
+# https://kubernetes.io/docs/reference/command-line-tools-reference/kube-apiserver/
+
+### keepalived & haproxy ###
+keepalived_virtual_router_id: 51
+keepalived_auth_pass: STRONG_PASSWORD # redefine this var in group var
+keepalived_virtual_ip: 172.16.1.1 # redefine this var in group var
+
+# http://www.haproxy.org/#down
+haproxy_repo: ppa:vbernat/haproxy-2.3
+#APISERVER_DEST_PORT
+haproxy_listen_port: "{{ kubernetes_control_plane_port }}"
+#APISERVER_SRC_PORT (defult)
+haproxy_api_server_src_port: 6443

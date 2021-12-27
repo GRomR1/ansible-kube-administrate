@@ -1,0 +1,9 @@
+
+### Ansible ###
+ansible.log
+*.retry
+*/__pycache__
+*.pyc
+.idea
+
+hosts.yml

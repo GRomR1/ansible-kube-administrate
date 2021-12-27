@@ -1,0 +1,62 @@
+
+# kubectl apply -f https://docs.projectcalico.org/manifests/tigera-operator.yaml
+- name: Install the Tigera Calico operator and custom resource definitions
+  become: no
+  shell: "kubectl apply -f {{ calico_crd_url }}"
+  run_once: true
+  register: calico_apply_crd
+- debug: var=calico_apply_crd.stdout_lines
+
+- name: Copy calico_config
+  template:
+    src: calico_config.yaml
+    dest: /tmp/calico_config.yaml
+
+# kubectl apply -f /tmp/calico_config.yaml
+- name: Install Calico by creating the necessary custom resource
+  become: no
+  shell: "kubectl apply -f /tmp/calico_config.yaml"
+  run_once: true
+  register: calico_apply_crd_config
+- debug: var=calico_apply_crd_config.stdout_lines
+
+- name: Download calicoctl
+  get_url:
+    url: "{{ calico_calicoctl_download_url }}"
+    dest: /usr/local/bin/calicoctl
+    mode: '0755'
+    owner: root
+    group: root
+
+- name: Create /etc/calico directory
+  file:
+    path: /etc/calico
+    state: directory
+    mode: 0755
+
+- name: Copy calicoctl_config file on /etc/calico
+  template:
+    src: calicoctl_config.yaml
+    dest: /etc/calico/calicoctl.cfg
+    mode: 0644
+
+- name: Run calicoctl get nodes
+  become: no
+  shell: "calicoctl get nodes"
+  run_once: true
+  register: calicoctl_nodes
+- debug: var=calicoctl_nodes.stdout_lines
+
+# curl -O -L  https://github.com/projectcalico/calicoctl/releases/download/v3.16.4/calicoctl -o /usr/local/bin/calicoctl
+# sudo mv calicoctl /usr/local/bin/
+# chmod +x calicoctl
+# chmod +x /usr/local/bin/calicoctl
+# calicoctl --help
+# KUBECONFIG=~/.kube/config calicoctl get nodes
+# DATASTORE_TYPE=kubernetes KUBECONFIG=~/.kube/config calicoctl get nodes
+# sudo vi /etc/calico/calicoctl.cfg
+# calicoctl get nodes
+# sudo vi /etc/calico/calicoctl.cfg
+# calicoctl get nodes
+# sudo vi /etc/calico/calicoctl.cfg
+# calicoctl get nodes

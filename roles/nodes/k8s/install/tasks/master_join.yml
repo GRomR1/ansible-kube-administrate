@@ -1,0 +1,44 @@
+
+- name: Copy kubeadm_config
+  template:
+    src: kubeadm_config.yaml
+    dest: /tmp/kubeadm_config.yaml
+
+## Create and upload new certificates in Secret "kubeadm-certs" in the "kube-system" Namespace
+# sudo kubeadm init phase upload-certs --upload-certs
+- name: Create and upload certificates
+  shell: kubeadm init phase upload-certs --upload-certs
+  run_once: true
+  delegate_to: "{{ kubernetes_master_nodes | map(attribute='node') | first }}"
+  register: results_kubeadm_init
+- debug: var=results_kubeadm_init.stdout_lines verbosity=1
+  run_once: true
+- set_fact:
+    certificate_key: "{{ results_kubeadm_init.stdout_lines | last }}"
+- debug: var=certificate_key verbosity=1
+  run_once: true
+
+## Create token with certificate
+# kubeadm token create \
+# --certificate-key 4486090b2735f1370a8360f6f1f742cd2061fd82e01ec342c8e08c80dce118ba \
+# --print-join-command
+- name: Create new token and print join command
+  shell: "kubeadm token create --certificate-key {{ certificate_key }} --print-join-command"
+  run_once: true
+  delegate_to: "{{ kubernetes_master_nodes | map(attribute='node') | first }}"
+  register: results_kubeadm_token
+- debug: var=results_kubeadm_token.stdout_lines
+  run_once: true
+- set_fact:
+    join_command: "{{ results_kubeadm_token.stdout_lines | last }}"
+- debug: var=join_command
+  run_once: true
+
+# - pause:
+
+- name: Run kubeadm join
+  shell: "{{ join_command }}"
+  register: kubeadm_join
+  when: inventory_hostname != kubernetes_master_nodes | map(attribute='node') | first
+  # TODO: add except already joined - check it ^^
+- debug: var=kubeadm_join.stdout_lines

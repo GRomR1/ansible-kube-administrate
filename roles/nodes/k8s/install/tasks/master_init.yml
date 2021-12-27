@@ -1,0 +1,20 @@
+
+- name: Copy kubeadm_config
+  template:
+    src: kubeadm_config.yaml
+    dest: /tmp/kubeadm_config.yaml
+
+# --upload-certs - Upload control-plane certificates to the kubeadm-certs Secret. This Secret will expire automatically after 2 hours.
+# kubeadm init --config=/tmp/kubeadm_config.yaml --upload-certs | tee /tmp/kubeadm-init.out
+- name: Run kubeadm init
+  shell: "kubeadm init --config=/tmp/kubeadm_config.yaml --upload-certs | tee /tmp/kubeadm-init.out"
+  run_once: true
+  # delegate_to: "{{ kubernetes_master_nodes | map(attribute='node') | first }}"
+  register: kubeadm_init
+- debug: var=kubeadm_init.stdout_lines
+
+- name: Save kubeadm_init log
+  become: no
+  delegate_to: localhost
+  copy: content="{{ kubeadm_init.stdout }}" dest="kubeadm_init.log"
+  run_once: true

@@ -1,0 +1,11 @@
+# This makes linter to fully ignore rules/tags listed below
+skip_list:
+  - unnamed-task
+
+warn_list:  # or 'skip_list' to silence them completely
+  - command-instead-of-shell  # Use shell only when shell functionality is required
+  - experimental  # all rules tagged as experimental
+  - no-changed-when  # Commands should not change things if nothing needs doing
+  - package-latest  # Package installs should not use latest
+  - risky-shell-pipe  # Shells that use pipes should set the pipefail option
+  - yaml  # Violations reported by yamllint

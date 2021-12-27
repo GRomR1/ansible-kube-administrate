@@ -1,0 +1,5 @@
+
+kubernetes_master_node: k8s-m1
+
+kubernetes_control_plane_endpoint: k8s.local # redefine this in group vars
+kubernetes_control_plane_port: 8443

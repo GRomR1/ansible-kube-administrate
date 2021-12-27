@@ -1,0 +1,64 @@
+# # https://github.com/kubernetes-sigs/cri-tools/releases
+# Install crictl
+
+# VERSION="v1.19.0"
+# wget https://github.com/kubernetes-sigs/cri-tools/releases/download/$VERSION/crictl-$VERSION-linux-amd64.tar.gz
+- name: Get crictl from github
+  get_url:
+    url: "https://codeload.github.com/kubernetes-sigs/cri-tools/tar.gz/refs/tags/{{ crictl_version }}"
+    dest: "/tmp/crictl-{{ crictl_version }}-linux-amd64.tar.gz"
+    mode: 0755
+
+# sudo tar zxvf crictl-$VERSION-linux-amd64.tar.gz -C /usr/local/bin
+- name: Extract crictl into /usr/local/bin
+  unarchive:
+    src: "/tmp/crictl-{{ crictl_version }}-linux-amd64.tar.gz"
+    dest: /usr/local/bin
+    remote_src: yes
+
+# rm -f crictl-$VERSION-linux-amd64.tar.gz
+- name: Remove downloaded archive (delete file)
+  file:
+    path: "/tmp/crictl-{{ crictl_version }}-linux-amd64.tar.gz"
+    state: absent
+
+- name: Create a crictl config file
+  file:
+    path: /etc/crictl.yaml
+    state: touch
+
+# cat <<EOF | sudo tee /etc/crictl.yaml
+# runtime-endpoint: unix:///run/containerd/containerd.sock
+# EOF
+- name: Configure crictl with containerd runtime environment
+  lineinfile:
+    regexp: "^{{ item }}"
+    line: "{{ item }}"
+    path: /etc/crictl.yaml
+  with_items:
+    - "runtime-endpoint: unix:///run/containerd/containerd.sock"
+    - "image-endpoint: unix:///run/containerd/containerd.sock"
+    - "timeout: 2"
+    # - "debug: true"
+    - "pull-image-on-create: true"
+
+- name: Enable crictl autocompletion
+  become: no
+  lineinfile:
+    dest: ~/.bashrc
+    state: present
+    regexp: '^source <(crictl completion)'
+    line: 'source <(crictl completion)'
+
+- name: Get version of crictl
+  shell: "crictl version && crictl -v"
+  register: crictl_versions
+# - debug: var=crictl_versions.stdout_lines
+
+# $ sudo crictl version
+# Version:  0.1.0
+# RuntimeName:  containerd
+# RuntimeVersion:  1.4.3
+# RuntimeApiVersion:  v1alpha2
+# $ sudo crictl -v
+# crictl version v1.19.0

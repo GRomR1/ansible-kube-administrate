@@ -1,0 +1,46 @@
+
+- name: Install and configure keepalived and HA Proxy
+  include_tasks:
+    file: keepalived.yml
+    apply:
+      tags:
+        - keepalived
+  tags:
+    - keepalived
+
+- name: Init k8s master nodes
+  include_tasks:
+    file: master_init.yml
+    apply:
+      tags:
+        - master_init
+  when: inventory_hostname == kubernetes_master_nodes | map(attribute='node') | first
+  tags:
+    - master_init
+
+- name: Join master nodes
+  include_tasks:
+    file: master_join.yml
+    apply:
+      tags:
+        - master_join
+  tags:
+    - master_join
+
+- name: Copy k8s config into master nodes
+  include_tasks:
+    file: master_config.yml
+    apply:
+      tags:
+        - master_config
+  tags:
+    - master_config
+
+- name: Installing calico
+  include_tasks:
+    file: calico.yml
+    apply:
+      tags:
+        - calico
+  tags:
+    - calico

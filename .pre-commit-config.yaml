@@ -1,0 +1,20 @@
+# добавляет принудительный запуск проверки перед каждым коммитом
+# pip3 install --user pre-commit
+# pre-commit install
+
+# pre-commit run --all-files -> запускает проверку вручную
+# pre-commit autoupdate -> обновляет версии пакетов в данном файле
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.1.0
+    hooks:
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: https://github.com/ansible/ansible-lint.git
+    rev: v5.3.1
+    hooks:
+      - id: ansible-lint

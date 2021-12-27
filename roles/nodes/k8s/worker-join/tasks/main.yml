@@ -1,0 +1,21 @@
+
+
+- name: Check if node is already joined
+  shell: "kubectl get no {{ inventory_hostname }}"
+  become: no
+  delegate_to: "{{ kubernetes_master_node }}"
+  register: in_cluster
+  # failed_when: in_cluster.rc == 0
+  ignore_errors: yes
+- debug: var=in_cluster verbosity=1
+
+
+- name: Join worker nodes
+  include_tasks:
+    file: worker_join.yml
+    apply:
+      tags:
+        - worker_join
+  tags:
+    - worker_join
+  when: in_cluster.rc != 0

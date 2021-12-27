@@ -1,0 +1,47 @@
+
+- name: Get already created token
+  shell: kubeadm token list | grep system:bootstrappers:kubeadm | awk '{print $1}'
+  run_once: true
+  delegate_to: "{{ kubernetes_master_node }}"
+  register: tokens
+
+- block:
+    - debug: var=tokens.stdout_lines verbosity=1
+      run_once: true
+    - set_fact:
+        kubernetes_bootstrap_token: "{{ tokens.stdout_lines | first }}"
+  when: tokens.stdout_lines | length > 0
+
+# - pause:
+
+
+- block:
+    - name: Create new token
+      shell: kubeadm token create
+      run_once: true
+      delegate_to: "{{ kubernetes_master_node }}"
+      register: token_create
+    - debug: var=token_create.stdout_lines verbosity=1
+      run_once: true
+    - set_fact:
+        kubernetes_bootstrap_token: "{{ token_create.stdout_lines | first }}"
+    # - set_fact:
+    #     join_command: "{{ results.stdout_lines | last }}"
+    # - debug: var=join_command verbosity=1
+    #   run_once: true
+  when: tokens.stdout_lines | length == 0
+
+- debug: var=kubernetes_bootstrap_token
+  run_once: true
+
+# - pause:
+
+- name: Copy kubeadm_config
+  template:
+    src: kubeadm_config.yaml
+    dest: /tmp/kubeadm_config.yaml
+
+- name: Run kubeadm join
+  shell: kubeadm join --config /tmp/kubeadm_config.yaml | tee /tmp/kubeadm-join.out
+  register: kubeadm_join
+- debug: var=kubeadm_join.stdout_lines

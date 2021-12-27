@@ -1,0 +1,21 @@
+# Настройка ВМ с Ubuntu 20.04 после установки для использования в качестве k8s мастер ноды
+
+
+# ansible-playbook playbooks/k8s-master-node-install.yml
+# ansible-playbook playbooks/k8s-master-node-install.yml --tags keepalived
+# ansible-playbook playbooks/k8s-master-node-install.yml --tags kubeadm
+# ansible-playbook playbooks/k8s-master-node-install.yml --tags master_init
+# ansible-playbook playbooks/k8s-master-node-install.yml --tags master_config
+# ansible-playbook playbooks/k8s-master-node-install.yml --tags master_join
+# ansible-playbook playbooks/k8s-master-node-install.yml --tags calico
+
+- hosts:
+    - k8smaster
+  gather_facts: yes
+  become: yes
+
+  roles:
+    - role: containerd
+    - role: crictl
+    - role: nodes/k8s/kubeadm
+    - role: nodes/k8s/install

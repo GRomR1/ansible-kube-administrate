@@ -1,0 +1,41 @@
+
+- name: restart_docker
+  systemd:
+    state: restarted
+    daemon_reload: yes
+    name: docker
+    enabled: yes
+
+- name: restart_kubelet
+  systemd:
+    state: restarted
+    daemon_reload: yes
+    name: kubelet
+    enabled: yes
+
+- name: restart_qemu_guest_agent
+  systemd:
+    state: restarted
+    daemon_reload: yes
+    name: qemu-guest-agent
+    enabled: yes
+
+- name: restart_keepalived
+  systemd:
+    state: restarted
+    daemon_reload: yes
+    name: keepalived
+    enabled: yes
+
+- name: restart_haproxy
+  systemd:
+    state: restarted
+    daemon_reload: yes
+    name: haproxy
+    enabled: yes
+
+- name: restart_containerd
+  systemd:
+    state: restarted
+    name: containerd
+    enabled: yes

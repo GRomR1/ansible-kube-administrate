@@ -1,0 +1,30 @@
+---
+apiVersion: kubeadm.k8s.io/v1beta2
+kind: InitConfiguration
+nodeRegistration:
+  kubeletExtraArgs:
+    container-runtime: remote
+    container-runtime-endpoint: unix:///run/containerd/containerd.sock
+    cgroup-driver: systemd
+  criSocket: /var/run/containerd/containerd.sock
+  name: "{{ inventory_hostname }}"
+---
+# kubectl edit -n kube-system configmaps kubeadm-config
+# kubectl get -n kube-system configmaps kubeadm-config --kubeconfig /etc/kubernetes/admin.conf  -o yaml
+# URL: https://pkg.go.dev/k8s.io/kubernetes/cmd/kubeadm/app/apis/kubeadm/v1beta2#hdr-Kubeadm_init_configuration_types
+apiVersion: kubeadm.k8s.io/v1beta2
+kind: ClusterConfiguration
+controlPlaneEndpoint: "{{ kubernetes_control_plane_endpoint }}:{{ kubernetes_control_plane_port }}"
+clusterName: "{{ kubernetes_cluster_name }}"
+networking:
+  podSubnet: "{{ kubernetes_pod_subnet }}"
+  serviceSubnet: "{{ kubernetes_service_subnet }}"
+  dnsDomain: "{{ kubernetes_cluster_name }}"
+---
+apiVersion: kubelet.config.k8s.io/v1beta1
+kind: KubeletConfiguration
+cgroupDriver: systemd
+#
+# ---
+# apiVersion: kubeproxy.config.k8s.io/v1alpha1
+# kind: KubeProxyConfiguration

@@ -1,0 +1,105 @@
+# https://github.com/kubernetes/kubeadm/blob/master/docs/ha-considerations.md#bootstrap-the-cluster
+
+- name: Show debug
+  vars:
+    debug_var:
+      # kubernetes_node_params: "{{ kubernetes_master_nodes | selectattr('node', 'equalto', inventory_hostname) }}"
+      kubernetes_master_nodes_lb: "{{ kubernetes_master_nodes | map(attribute='node') }}"
+      keepalived_interface: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['alias'] }}"
+      keepalived_state: "{{ kubernetes_master_nodes | selectattr('node', 'equalto', inventory_hostname) | map(attribute='keepalived_state') | first }}"
+      keepalived_priority:  "{{ kubernetes_master_nodes | selectattr('node', 'equalto', inventory_hostname) | map(attribute='keepalived_priority') | first  }}"
+  debug:
+    var: debug_var
+
+# https://launchpad.net/~vbernat
+# sudo add-apt-repository ppa:vbernat/haproxy-2.3
+# sudo apt-get update
+- name: Create HAProxy PPA Repository
+  apt_repository:
+    repo: "{{ haproxy_repo }}"
+  # when: false
+
+# - name: Update apt cache
+#   apt: update_cache=true
+#   # when: false
+
+- name: Install Keepalived and haproxy packages
+  apt:
+    name:
+    - keepalived
+    - haproxy
+    state: latest
+    update_cache: true
+  notify:
+    - restart_keepalived
+    - restart_haproxy
+  # when: false
+
+# Set ip ip_nonlocal_bind on in /proc and in the sysctl file and reload if necessary
+- name: Enable HAProxy and Keepalived to bind to non-local IP address
+  sysctl:
+    name: net.ipv4.ip_nonlocal_bind
+    value: '1'
+    sysctl_set: yes
+    state: present
+    reload: yes
+  # when: false
+
+- name: Copy keepalived_config
+  vars:
+    # kubernetes_node_params: "{{ kubernetes_master_nodes | selectattr('node', 'equalto', inventory_hostname) }}"
+    kubernetes_master_nodes_lb: "{{ kubernetes_master_nodes | map(attribute='node') }}"
+    keepalived_interface: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['alias'] }}"
+    keepalived_state: "{{ kubernetes_master_nodes | selectattr('node', 'equalto', inventory_hostname) | map(attribute='keepalived_state') | first }}"
+    keepalived_priority:  "{{ kubernetes_master_nodes | selectattr('node', 'equalto', inventory_hostname) | map(attribute='keepalived_priority') | first  }}"
+  template:
+    src: keepalived_config.j2.conf
+    dest: /etc/keepalived/keepalived.conf
+    backup: true
+  when: inventory_hostname in kubernetes_master_nodes_lb
+  notify:
+    - restart_keepalived
+
+- name: Copy check_apiserver shell script
+  vars:
+    # kubernetes_node_params: "{{ kubernetes_master_nodes | selectattr('node', 'equalto', inventory_hostname) }}"
+    kubernetes_master_nodes_lb: "{{ kubernetes_master_nodes | map(attribute='node') }}"
+  template:
+    src: check_apiserver.j2.sh
+    dest: /etc/keepalived/check_apiserver.sh
+    mode: 0755
+    backup: true
+  when: inventory_hostname in kubernetes_master_nodes_lb
+  notify:
+    - restart_keepalived
+
+- name: Copy ha_proxy config
+  vars:
+    # kubernetes_node_params: "{{ kubernetes_master_nodes | selectattr('node', 'equalto', inventory_hostname) }}"
+    # kubernetes_master_nodes_lb_ip: "{{ kubernetes_master_nodes | map(attribute='haproxy_ip') }}"
+    # TODO need 'k8smaster' group in hosts.yml
+    kubernetes_master_nodes_lb_ip: "{{ groups['k8smaster'] | map('extract',hostvars,'ansible_default_ipv4') | list | map(attribute='address') }}"
+    kubernetes_master_nodes_lb: "{{ kubernetes_master_nodes | map(attribute='node') }}"
+    haproxy_nodes: "{{ dict(kubernetes_master_nodes_lb | zip(kubernetes_master_nodes_lb_ip)) | dict2items(key_name='host_id', value_name='host_ip_address') }}"
+    keepalived_interface: "{{ hostvars[inventory_hostname]['ansible_default_ipv4']['alias'] }}"
+    keepalived_state: "{{ kubernetes_master_nodes | selectattr('node', 'equalto', inventory_hostname) | map(attribute='keepalived_state') | first }}"
+    keepalived_priority:  "{{ kubernetes_master_nodes | selectattr('node', 'equalto', inventory_hostname) | map(attribute='keepalived_priority') | first  }}"
+  template:
+    src: ha_proxy.j2.conf
+    dest: /etc/haproxy/haproxy.cfg
+    backup: true
+    validate: haproxy -c -f %s
+  when: inventory_hostname in kubernetes_master_nodes_lb
+  notify:
+    - restart_haproxy
+
+- meta: flush_handlers
+
+- name: Ensure service is started and enabled at boot
+  service:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+  with_items:
+  - keepalived
+  - haproxy

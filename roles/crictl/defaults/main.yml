@@ -1,0 +1,4 @@
+
+# crictl
+# https://github.com/kubernetes-sigs/cri-tools/releases
+crictl_version: v1.21.0

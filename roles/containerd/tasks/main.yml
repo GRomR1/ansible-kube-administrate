@@ -1,0 +1,29 @@
+
+- name: Install containerd | Ubuntu
+  include_tasks:
+    file: containerd_ubuntu.yml
+    apply:
+      tags:
+        - containerd
+  tags:
+    - containerd
+  when:
+    - ansible_distribution == 'Ubuntu'
+
+- name: Configure containerd
+  include_tasks:
+    file: containerd_config.yml
+    apply:
+      tags:
+        - containerd_config
+  tags:
+  - containerd_config
+
+- name: Fix ACL permisions
+  include_tasks:
+    file: fix_permisions.yml
+    apply:
+      tags:
+        - fix_permisions
+  tags:
+  - fix_permisions

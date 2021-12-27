@@ -1,0 +1,9 @@
+
+kubernetes_packages:
+  - kubeadm
+  - kubelet
+  - kubectl
+
+# https://kubernetes.io/docs/setup/release/notes/
+# https://github.com/kubernetes/kubernetes/releases
+kubernetes_version: 1.21.1

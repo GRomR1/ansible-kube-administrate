@@ -1,0 +1,15 @@
+# Настройка ВМ с Ubuntu 20.04 после установки для использования в качестве k8s воркер ноды
+
+
+# ansible-playbook playbooks/k8s-worker-node-install.yml
+# ansible-playbook playbooks/k8s-worker-node-install.yml -v --tags containerd_config
+
+- hosts:
+    - k8sworker
+  gather_facts: yes
+  become: yes
+  roles:
+    - role: containerd
+    - role: nodes/k8s/kubeadm
+    - role: crictl
+    - role: nodes/k8s/worker-join

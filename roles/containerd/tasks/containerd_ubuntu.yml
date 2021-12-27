@@ -1,0 +1,100 @@
+---
+- name: Construct repository address
+  set_fact:
+    containerd_repo_address: '{{ containerd_repo | regex_replace("/$", "") }}/{{ ansible_distribution | lower }}'
+
+- name: Remove old versions of containerd if present
+  package:
+    name:
+      - containerd
+    state: absent
+
+# sudo modprobe overlay
+# sudo modprobe br_netfilter
+- name: Load modules
+  shell: "modprobe {{ item }}"
+  loop:
+    - overlay
+    - br_netfilter
+
+- name: Create a module file
+  file:
+    path: /etc/modules-load.d/containerd.conf
+    state: touch
+
+# https://kubernetes.io/docs/setup/production-environment/container-runtimes/#containerd
+- name: Install and configure prerequisites modprobe
+  lineinfile:
+    dest: /etc/modules-load.d/containerd.conf
+    state: present
+    regexp: '^{{ item }}'
+    line: '{{ item }}'
+  loop:
+    - overlay
+    - br_netfilter
+
+- name: Install and configure prerequisites sysctl
+  ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    sysctl_set: yes
+    state: present
+    sysctl_file: /etc/sysctl.d/99-kubernetes-cri.conf
+    reload: yes
+  loop:
+  - name: net.ipv4.ip_forward
+    value: '1'
+  - name: net.bridge.bridge-nf-call-iptables
+    value: '1'
+  - name: net.bridge.bridge-nf-call-ip6tables
+    value: '1'
+
+- name: Install containerd dependencies
+  apt:
+    update_cache: true
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - gnupg2
+    state: present
+
+- name: Add containerd apt key
+  apt_key:
+    url: "{{ containerd_repo_address }}/gpg"
+    id: 9DC858229FC7DD38854AE2D88D81803C0EBFCD88
+    state: present
+    validate_certs: "{{ containerd_repo_valid_ssl }}"
+  register: add_repository_key
+  ignore_errors: "{{ docker_apt_ignore_key_error }}"
+
+- name: Ensure curl is present (on older systems without SNI)
+  package: name=curl state=present
+  when: add_repository_key is failed
+
+- name: Add Docker apt key (alternative for older systems without SNI)
+  shell: >
+    set -o pipefail;
+    curl {% if not containerd_repo_valid_ssl %}-k{% endif %} -sSL {{ containerd_repo_address }}/gpg | sudo apt-key add -
+  args:
+    warn: false
+  when: add_repository_key is failed
+
+- name: Add Docker repository
+  apt_repository:
+    repo: >-
+      deb [arch={{ (ansible_architecture == 'x86_64') | ternary('amd64', ansible_architecture) }}]
+      {{ containerd_repo | regex_replace("/$", "") }}/{{ ansible_distribution | lower }}
+      {{ ansible_distribution_release }} stable
+    state: present
+
+- name: Install containerd
+  package:
+    name:
+      - containerd.io
+  notify: restart_containerd
+
+- name: Ensure containerd is started and enabled
+  systemd:
+    name: containerd
+    enabled: true
+    state: started
